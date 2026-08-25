@@ -1,0 +1,40 @@
+cff-version: 1.2.0
+message: "If you use this software or its figures, please cite the paper below."
+title: "weekday-manifold: sensitivity and occupancy tests for representation manifolds"
+abstract: >-
+  Code and committed figures for "Spokes, not a Ring: Testing Continuity of
+  Representation Manifolds". Measures steering sensitivity and occupancy on the
+  days-of-the-week manifold in Llama-3.1-8B, Mistral-7B-v0.1 and GPT-2 XL, and
+  finds seven discrete states rather than a continuous ring.
+type: software
+license: MIT
+repository-code: "https://github.com/dikshagup/weekday-manifold"
+version: "1.0.0"
+authors:
+  - family-names: Gupta
+    given-names: Diksha
+    email: 22dikshagupta@gmail.com
+  - family-names: Fruengel
+    given-names: Rieke
+  - family-names: Heimersheim
+    given-names: Stefan
+  # TODO(camera-ready): add `orcid: "https://orcid.org/..."` and `affiliation:`
+  # to each author, and confirm the order matches the submission.
+keywords:
+  - mechanistic interpretability
+  - representation manifolds
+  - activation steering
+  - large language models
+preferred-citation:
+  type: conference-paper
+  title: "Spokes, not a Ring: Testing Continuity of Representation Manifolds"
+  year: 2026
+  collection-title: "Symmetry and Geometry in Neural Representations (NeurReps)"
+  authors:
+    - family-names: Gupta
+      given-names: Diksha
+    - family-names: Fruengel
+      given-names: Rieke
+    - family-names: Heimersheim
+      given-names: Stefan
+  # TODO(camera-ready): add the PMLR volume, pages and DOI once assigned.

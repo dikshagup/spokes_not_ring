@@ -1,0 +1,42 @@
+[project]
+name = "weekday-manifold"
+version = "1.0.0"
+description = "Sensitivity and occupancy tests for the days-of-the-week representation manifold"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Diksha Gupta" },
+    { name = "Rieke Fruengel" },
+    { name = "Stefan Heimersheim" },
+]
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.26.4",
+    "scipy>=1.13.1",             # periodic cubic spline (scipy.interpolate.CubicSpline)
+    "torch>=2.8.0",              # torch.func.jvp is the Jacobian primitive
+    "transformer-lens~=2.0",     # HookedTransformer: the patch / readout hooks
+    "huggingface-hub>=0.36.2",   # weight download for meta-llama/Llama-3.1-8B
+    "matplotlib>=3.9.4",         # the figure scripts
+]
+
+[project.urls]
+Repository = "https://github.com/dikshagup/weekday-manifold"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/weekday_manifold"]
+
+[tool.pytest.ini_options]
+# experiments/ is on the path because the figure scripts import each other as plain
+# modules (figure_combined -> cascade_row, polar_disc), which is what the repro
+# scripts' PYTHONPATH=src:experiments does; tests/ is on it for synthetic_captures.
+pythonpath = ["src", "experiments", "tests"]
+testpaths = ["tests"]

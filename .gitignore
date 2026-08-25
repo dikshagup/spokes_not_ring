@@ -1,0 +1,43 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Nothing generated is tracked: not the captured activations, not the sweep outputs, and
+# not the rendered plates. Every one of them is rebuilt by a script in experiments/ (see
+# the table in README.md), and a repo that ships the outputs alongside the code is a repo
+# where the two can silently disagree.
+*.npz
+*.npy
+
+# Rendered figures and the captions written beside them. figures/ is where they land; the
+# only tracked thing in it is readout_context.json, which is an INPUT to figure 5's plate
+# (the tokeniser's view of the readout site) rather than one of its outputs.
+figures/*.pdf
+figures/*.png
+figures/*.svg
+figures/*_caption.md
+figures/*_caption.txt
+figures/*_methods.txt
+figures/*_methods.md
+
+# The same policy, for the capture outputs that are not npz: steer_timeofday.py's meta.json
+# and steer_rows.csv, and steer_clamp_matched_pairs.py's rows.csv. Figure 2 reads them, and
+# repro_fig2_timeofday_with_steering.sh regenerates them.
+experiments/results/
+
+# The prompt-library activation cache (ManifoldConfig.cache_dir). The default is the
+# RELATIVE path "data/activations" and every repro_*.sh cds to the repo root first, so it
+# is written INSIDE the working tree -- ~642 MB for one figure-3 run. Ignored because it is
+# a cache, not a result: capture_corpus_windows.py --no-cache rebuilds it from the GPU.
+/data
+
+# Virtual environments. uv writes .venv/.gitignore itself, so a uv-made venv is already
+# invisible; this covers the ones made any other way.
+.venv/
+venv/
+env/
+
+# Editor / OS droppings
+.DS_Store
+.idea/
+.vscode/

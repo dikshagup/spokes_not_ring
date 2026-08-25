@@ -1,0 +1,14 @@
+{
+  "model_name": "meta-llama/Llama-3.1-8B",
+  "dtype": "float16",
+  "device": "cuda",
+  "layer_preset": null,
+  "layer_frac": null,
+  "layer_index": 28,
+  "formulation": "mention_early",
+  "offset_style": "word",
+  "group_by": "input",
+  "n_pca_dims": 32,
+  "day_scoring": "fullstring",
+  "notes": "Llama-3.1-8B in float16 rather than bfloat16. Identical memory (both are two bytes) but 10 explicit mantissa bits against bfloat16's 7, so ~8x finer. The sweep's speed is a difference of two residuals of norm ~48 that differ by ~0.2, and in bfloat16 the rounding floor on that difference is 0.455 -- 69% of the measured step at n_u=141. float16 should cut it to ~0.06. The risk is range, not precision: float16 overflows at 65504 and Llama has large residual-stream outliers, so this config is only usable if the identity check and clean accuracy match the bfloat16 run. Verify before trusting it."
+}

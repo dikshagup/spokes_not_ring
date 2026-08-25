@@ -1,0 +1,223 @@
+{
+  "interrogative": {
+    "prompt": "Q: What day is one days after Monday?\nA:",
+    "tokens": [
+      "<|begin_of_text|>",
+      "Q",
+      ":",
+      " What",
+      " day",
+      " is",
+      " one",
+      " days",
+      " after",
+      " Monday",
+      "?\n",
+      "A",
+      ":"
+    ],
+    "patch_pos": 9,
+    "read_pos": 12,
+    "eta2_patch": 0.984250561910975,
+    "decodable_patch": 1.0,
+    "n_groups": 7,
+    "eta2_read": 0.170619458801956,
+    "decodable_read": 0.3469387755102041,
+    "var3_patch": 0.7184582948684692,
+    "p_weekday": 0.7386754155158997,
+    "top_tokens": [
+      [
+        " Sunday",
+        0.13665419816970825
+      ],
+      [
+        " Friday",
+        0.12233415246009827
+      ],
+      [
+        " Tuesday",
+        0.10304629802703857
+      ],
+      [
+        " Thursday",
+        0.09765355288982391
+      ],
+      [
+        " Saturday",
+        0.09630998969078064
+      ],
+      [
+        " Wednesday",
+        0.09473343938589096
+      ]
+    ],
+    "n_prompts": 49,
+    "n_family": 49,
+    "centroid_drift": NaN
+  },
+  "mention_early_stop": {
+    "prompt": "On Monday, she missed her train. On this day",
+    "tokens": [
+      "<|begin_of_text|>",
+      "On",
+      " Monday",
+      ",",
+      " she",
+      " missed",
+      " her",
+      " train",
+      ".",
+      " On",
+      " this",
+      " day"
+    ],
+    "patch_pos": 2,
+    "read_pos": 8,
+    "eta2_patch": 1.0000000000000002,
+    "decodable_patch": 1.0,
+    "n_groups": 10,
+    "eta2_read": 0.07257072501755588,
+    "decodable_read": 0.9857142857142858,
+    "var3_patch": 0.7579460740089417,
+    "p_weekday": 0.021307094022631645,
+    "top_tokens": [
+      [
+        " On",
+        0.11381682753562927
+      ],
+      [
+        " I",
+        0.09617286175489426
+      ],
+      [
+        " The",
+        0.07674461603164673
+      ],
+      [
+        " It",
+        0.06897294521331787
+      ],
+      [
+        " He",
+        0.035251177847385406
+      ],
+      [
+        " We",
+        0.03235674649477005
+      ]
+    ],
+    "n_prompts": 70,
+    "n_family": 140,
+    "centroid_drift": 0.029853126034140587
+  },
+  "mention_early_on": {
+    "prompt": "On Monday, she missed her train. On this day",
+    "tokens": [
+      "<|begin_of_text|>",
+      "On",
+      " Monday",
+      ",",
+      " she",
+      " missed",
+      " her",
+      " train",
+      ".",
+      " On",
+      " this",
+      " day"
+    ],
+    "patch_pos": 2,
+    "read_pos": 9,
+    "eta2_patch": 1.0000000000000002,
+    "decodable_patch": 1.0,
+    "n_groups": 10,
+    "eta2_read": 0.5074019316208305,
+    "decodable_read": 1.0,
+    "var3_patch": 0.7579460740089417,
+    "p_weekday": 0.9552969932556152,
+    "top_tokens": [
+      [
+        " Monday",
+        0.158712238073349
+      ],
+      [
+        " Friday",
+        0.14163713157176971
+      ],
+      [
+        " Wednesday",
+        0.1378401219844818
+      ],
+      [
+        " Thursday",
+        0.13759034872055054
+      ],
+      [
+        " Tuesday",
+        0.13679853081703186
+      ],
+      [
+        " Sunday",
+        0.12794376909732819
+      ]
+    ],
+    "n_prompts": 70,
+    "n_family": 140,
+    "centroid_drift": 0.029853126034140587
+  },
+  "mention_early_day": {
+    "prompt": "On Monday, she missed her train. On this day",
+    "tokens": [
+      "<|begin_of_text|>",
+      "On",
+      " Monday",
+      ",",
+      " she",
+      " missed",
+      " her",
+      " train",
+      ".",
+      " On",
+      " this",
+      " day"
+    ],
+    "patch_pos": 2,
+    "read_pos": 11,
+    "eta2_patch": 1.0000000000000002,
+    "decodable_patch": 1.0,
+    "n_groups": 10,
+    "eta2_read": 0.04820208047750148,
+    "decodable_read": 0.6,
+    "var3_patch": 0.7579460740089417,
+    "p_weekday": 0.0006154184229671955,
+    "top_tokens": [
+      [
+        ",",
+        0.6700741052627563
+      ],
+      [
+        " I",
+        0.03572497516870499
+      ],
+      [
+        " in",
+        0.03293406218290329
+      ],
+      [
+        " of",
+        0.03282837197184563
+      ],
+      [
+        " the",
+        0.022006899118423462
+      ],
+      [
+        " he",
+        0.01963547244668007
+      ]
+    ],
+    "n_prompts": 70,
+    "n_family": 140,
+    "centroid_drift": 0.029853126034140587
+  }
+}

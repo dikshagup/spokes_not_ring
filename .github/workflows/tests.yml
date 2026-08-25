@@ -1,0 +1,84 @@
+# CPU-only CI. This exercises the library, the geometry, and the figure-wiring tests --
+# everything that does not need a GPU or model weights. The capture stages behind the
+# figures take GPU hours and gated weights, so they are NOT run here; see README.md
+# ("What is verified, and what is not") for what those stages are checked against.
+name: tests
+
+on:
+  push:
+    branches: [master, reproduce-paper]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pytest:
+    name: pytest (python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.9 is the interpreter every committed figure was produced on (README pins the
+        # exact package versions); 3.12 is here to catch drift before it reaches a rerun.
+        python-version: ["3.9", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install torch (CPU wheel)
+        # Installed separately and first: the default PyPI wheel carries the bundled CUDA
+        # runtime and is several GB, which no test here can use. Doing this before the
+        # editable install means the torch>=2.8 bound in pyproject.toml is already met.
+        run: |
+          python -m pip install --upgrade pip
+          pip install --index-url https://download.pytorch.org/whl/cpu 'torch>=2.8.0'
+
+      - name: Install the package
+        run: pip install -e '.[dev]'
+
+      - name: Record the resolved environment
+        # The usual reason a capture stops matching is a resolver picking differently, so
+        # the versions this run actually got are worth having in the log.
+        run: |
+          python -c "import importlib.metadata as md; print('\n'.join(f'{n}=={md.version(n)}' for n in \
+            ['numpy','scipy','torch','transformer_lens','transformers','huggingface-hub','matplotlib','pytest']))"
+
+      - name: pytest
+        env:
+          # No test loads weights, but transformers/TL reach for the hub on import paths
+          # that a sandboxed runner should not depend on.
+          HF_HUB_OFFLINE: "1"
+          MPLBACKEND: Agg
+        run: pytest -q
+
+  scripts:
+    name: repro scripts parse, and their figures exist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Every repro script is valid bash
+        run: |
+          for f in experiments/repro_fig*.sh; do echo "bash -n $f"; bash -n "$f"; done
+
+      - name: Every repro script names a figure script that exists
+        # The seven entry points are the authority on what each figure is; a rename that
+        # misses one of them should fail here rather than at submission.
+        run: |
+          missing=0
+          for f in experiments/repro_fig*.sh; do
+            for py in $(grep -oE 'experiments/[a-z_0-9]+\.py' "$f" | sort -u); do
+              [ -f "$py" ] || { echo "$f references missing $py"; missing=1; }
+            done
+          done
+          exit $missing
+
+      - name: No generated artifacts are tracked
+        # Nothing this repo produces belongs in it: not activations, not sweeps, not plates.
+        run: |
+          bad=$(git ls-files | grep -iE '\.(npz|npy|pkl|pt|h5|pdf|png)$' || true)
+          if [ -n "$bad" ]; then echo "tracked generated files:"; echo "$bad"; exit 1; fi
+          echo "clean"

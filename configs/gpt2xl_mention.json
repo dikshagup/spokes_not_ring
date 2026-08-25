@@ -1,0 +1,14 @@
+{
+  "model_name": "gpt2-xl",
+  "dtype": "float32",
+  "device": "cuda",
+  "layer_preset": null,
+  "layer_frac": null,
+  "layer_index": 42,
+  "formulation": "mention_early",
+  "offset_style": "word",
+  "group_by": "input",
+  "n_pca_dims": 32,
+  "day_scoring": "fullstring",
+  "notes": "GPT-2 XL, 48 blocks. Depths chosen by FRACTION of the stack so they match the Llama run rather than the raw index: steer L3 (Llama L2/32 = 6%), read L42 (L28/32 = 87.5%), ladder at 3,9,15,21,27,33,39,42,45,47. Mention prompts only."
+}

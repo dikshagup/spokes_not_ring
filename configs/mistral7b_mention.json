@@ -1,0 +1,14 @@
+{
+  "model_name": "mistralai/Mistral-7B-v0.1",
+  "dtype": "float16",
+  "device": "cuda",
+  "layer_preset": null,
+  "layer_frac": null,
+  "layer_index": 28,
+  "formulation": "mention_early",
+  "offset_style": "word",
+  "group_by": "input",
+  "n_pca_dims": 32,
+  "day_scoring": "fullstring",
+  "notes": "Mistral-7B-v0.1 -- the model Engels et al. 2025 used for the weekday circle, so this is the setting the original circular-features claim was made in. Same width and depth as Llama-3.1-8B (4096 wide, 32 blocks, 8 KV heads), so the layer choices port across UNCHANGED: steer L2, read L28, ladder 2,6,10,14,18,22,26,28,30,31. No depth recalibration is needed, unlike GPT-2 XL's 48 blocks. float16 and NOT the bfloat16 the checkpoint ships in: the sweep's speed is a difference of two nearby residuals, and in bfloat16 rounding was 69% of the measured step against 6% in float16. Verified on GPT-2 XL against a float32 ground truth -- float16 matches it to 0.1% on the day-to-day ratio, bfloat16 understates that ratio by 16%. Vocab is 32000 against Llama's 128256, but all seven weekdays are still single tokens with a leading space, so the sweep's single-token assertion passes. The PROMPT POSITIONS do not necessarily port -- SentencePiece tokenises the mention_early templates differently from Llama's BPE, so --patch-pos and --readout-pos must be taken from the position check rather than copied from the Llama command. Sliding-window attention (4096) is irrelevant at these ~11-token prompts."
+}

@@ -1,0 +1,14 @@
+{
+  "model_name": "meta-llama/Llama-3.1-8B",
+  "dtype": "float16",
+  "device": "cuda",
+  "layer_preset": null,
+  "layer_frac": null,
+  "layer_index": 28,
+  "formulation": "interrogative",
+  "offset_style": "word",
+  "group_by": "correct",
+  "n_pca_dims": 32,
+  "day_scoring": "fullstring",
+  "notes": "Llama-3.1-8B interrogative, in float16 rather than the checkpoint's bfloat16. Identical memory, 10 explicit mantissa bits against 7. The emergence figure's panels C and D are built from differences of nearby residuals, where bfloat16 rounding was 69% of the measured step; float16 takes it to 6%, and was checked against a float32 ground truth on GPT-2 XL where it matches to 0.1% on the day-to-day ratio. Everything else matches configs/llama31_8b_fp16.json, so figure 6 stays comparable with the mention-family figures, which are float16 for Llama and Mistral and float32 for GPT-2 XL."
+}
