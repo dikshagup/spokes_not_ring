@@ -6,7 +6,7 @@ name: tests
 
 on:
   push:
-    branches: [master, reproduce-paper]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
