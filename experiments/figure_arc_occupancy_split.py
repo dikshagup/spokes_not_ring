@@ -1,11 +1,17 @@
 #!/usr/bin/env python
 """Figure 3, and the appendix plate off the same refit.
 
---panels ab is the published main-text cut; --panels abc adds the subspace-energy violin,
-which is the appendix plate's panel B.
+--panels abcd is the main-text cut: a 2x2 that pairs where weekday windows fall (A, B)
+with what the 7-way weekday swap does to that (C, D). C and D were the appendix plate's
+B and C; the subspace-energy violin the old --panels abc carried as its third panel is
+dropped, and with it the appendix plate -- see --appendix, which is now off by default.
 
-Writes figures/arc_occupancy_main_ab and figures/arc_occupancy_appendix. See
-repro_fig3_arc_occupancy.sh.
+--panels ab is the previously published two-panel cut, and --panels abc the three-panel
+row whose md5 is pinned in repro_fig3_arc_occupancy.sh -- kept because that hash is the
+isolation check on this stage.
+
+Writes figures/arc_occupancy_main_abcd. The appendix plate is opt-in (--appendix) and
+--verify turns it on, since its md5 is pinned. See repro_fig3_arc_occupancy.sh.
 """
 from __future__ import annotations
 import argparse, os, re, sys
@@ -133,12 +139,28 @@ def main():
     ap.add_argument("--swap", default=os.path.join(RAW_DIR, "swap_L28_n16.npz"))
     ap.add_argument("--list", default=os.path.join(CORPUS_DIR, "capture_list_n256.npz"))
     ap.add_argument("--outdir", default="figures")
-    ap.add_argument("--panels", default="ab", choices=("ab", "abc"),
-                    help="main plate: 'ab' is the published cut (figures/"
+    ap.add_argument("--panels", default="abcd", choices=("ab", "abc", "abcd"),
+                    help="main plate: 'abcd' (default) is the 2x2 -- the ring plane, the "
+                         "ring itself, and the two swap panels promoted from the "
+                         "appendix -- and writes figures/arc_occupancy_main_abcd. "
+                         "'ab' is the previously published cut (figures/"
                          "arc_occupancy_main_ab) -- the ring plane and the ring itself. "
                          "'abc' adds the subspace-energy violin as panel C and writes "
                          "figures/arc_occupancy_main; that panel is the appendix plate's "
-                         "panel B, so the two would state it twice.")
+                         "panel B, so the two would state it twice. 'abc' is what the "
+                         "pinned md5 covers, so --verify still renders it.")
+    ap.add_argument("--pick-context", action="append", metavar="TEXT",
+                    help="pin a panel-C template by a substring of its decoded context, "
+                         "repeatable, matched case-insensitively against the same 15 "
+                         "tokens the FAMILIES regexes see. Checked before those regexes; "
+                         "whatever is left of the four slots they fill as before. Use it "
+                         "to reproduce a published set of exemplars, which the "
+                         "one-per-family rule cannot.")
+    ap.add_argument("--appendix", action="store_true",
+                    help="also render figures/arc_occupancy_appendix. Off by default: "
+                         "its swap panels are now the main plate's C and D, and rendering "
+                         "both would state one measurement twice. --verify turns it back "
+                         "on, since the pinned md5 below covers it.")
     ap.add_argument("--grid", type=int, default=7000)
     ap.add_argument("--bins", type=int, default=112)
     ap.add_argument("--gate-q", type=float, default=0.25)
@@ -218,11 +240,38 @@ def main():
     IDS = np.load(args.list, allow_pickle=True)["ids"]
     rows = S["fam_row"][sel]; fday = S["fam_day"][sel]
     ctxl = [tok.decode(IDS[r][-16:-1]).lower() for r in rows]
-    picks = []
+    # --pick-context PINS a template by its text, and is checked before the family
+    # regexes. The regexes take at most ONE window per family and so cannot return two
+    # from the same family -- which the published set contained ("...is open 6 days a
+    # week," and "...The winery is open" are both `opening hours`), so that set is not
+    # reachable through them at all. Pinning by substring sidesteps the rule rather
+    # than reweighting it. A pin that matches nothing is REPORTED, not silently
+    # dropped: a corpus that no longer holds the window is a fact worth seeing, and a
+    # family fallback would paper over it.
+    picks, pinned = [], []
+    for want in (args.pick_context or []):
+        w = want.strip().lower()
+        hit = np.array([w in c for c in ctxl])
+        if hit.any():
+            cand = np.where(hit)[0]
+            i = int(cand[np.argmax(shift[cand])])
+            if i not in pinned:
+                picks.append(i); pinned.append(i)
+                print(f"[pick] pinned  {want!r}")
+            else:
+                print(f"[pick] dup     {want!r} -- already pinned by an earlier string")
+        else:
+            print(f"[pick] MISSING {want!r} -- not in this corpus")
+    n_pinned = len(picks)
     for _, pat in FAMILIES:
+        if len(picks) >= 4:
+            break
         hit = np.array([bool(re.search(pat, c)) for c in ctxl])
+        hit[pinned] = False                      # never draw one window twice
         if hit.any():
             cand = np.where(hit)[0]; picks.append(int(cand[np.argmax(shift[cand])]))
+    if args.pick_context:
+        print(f"[pick] {n_pinned} pinned, {len(picks) - n_pinned} from families")
 
     def prompt(i):
         r = rows[i]
@@ -385,6 +434,52 @@ def main():
         ax.set_ylim(0, 1.03 * frac[shown].max()); ax.set_xlim(-0.6, 3.9)
         ax.set_ylabel(ylab, fontsize=fs_lab, color=INK)
 
+    # The swap panels are painters like the two above, not inline code, because the 2x2
+    # main cut and the appendix plate both draw them. Same reason polar_disc.py is a
+    # module: two copies of one renderer can drift apart without either figure erroring.
+    _LS = [(0, (7, 2)), "--", "-.", ":"]
+    _GREY = ["#16181d", "#4a5160", "#79808f", "#a6acb8"]
+
+    def panel_swap_rings(ax, fs_leg=FS_LEG, ms=4.4, lw=1.2, legend_loc="upper right"):
+        """One ring per prompt template, from the 7-way weekday swap: context moves the
+        ring bodily. The red curve is the mean over families."""
+        tidy(ax); ax.set_aspect("equal")
+        for j, i in enumerate(picks):
+            Kp = Dm[i] @ plane.T + offs[i]; c = W @ Kp
+            ax.plot(c[:, 0], c[:, 1], linestyle=_LS[j], color=_GREY[j], lw=lw, zorder=4,
+                    label=f"Template {j+1}")
+            for k in range(7):
+                ax.plot(Kp[k, 0], Kp[k, 1], "o", ms=ms, color=DAY_C[k],
+                        markeredgecolor=_GREY[j], markeredgewidth=0.6, zorder=5)
+        ax.plot(tc[:, 0], tc[:, 1], "-", color=C_SWAP, lw=1.9, alpha=0.9, zorder=3,
+                label="Mean")
+        ax.legend(frameon=False, fontsize=fs_leg, loc=legend_loc, handletextpad=0.5,
+                  borderaxespad=0.1, labelspacing=0.28)
+
+    def panel_demeaned(ax, fs_day=FS_DAY, ms_pt=1.6, ms_knot=5.5, day_r=1.42):
+        """The same projections with each family's own mean removed. The seven clumps
+        come back on top of each other, so the context translated the ring without
+        rotating it."""
+        tidy(ax); ax.set_aspect("equal")
+        for k in range(7):
+            ax.plot(P[:, k, 0], P[:, k, 1], "o", ms=ms_pt, color=DAY_C[k], alpha=0.5,
+                    markeredgecolor="none", zorder=3)
+        ax.plot(tc[:, 0], tc[:, 1], "-", color="white", lw=2.6, zorder=5)
+        ax.plot(tc[:, 0], tc[:, 1], "-", color=C_SWAP, lw=1.6, zorder=6)
+        for k in range(7):
+            ax.plot(KT[k, 0], KT[k, 1], "o", ms=ms_knot, color=DAY_C[k],
+                    markeredgecolor=INK, markeredgewidth=0.7, zorder=7)
+            ax.annotate(DAYS[k][:3], (KT[k, 0] * day_r, KT[k, 1] * day_r), fontsize=fs_day,
+                        color=INK, ha="center", va="center", zorder=8, fontweight="bold")
+
+    def swap_frame():
+        """The frame the two swap panels share. The exemplars in panel_swap_rings are
+        picked for maximal displacement and so set it, which zooms panel_demeaned out --
+        that relative scale is the comparison, and giving each panel its own limits
+        would destroy it."""
+        return np.concatenate([np.r_[tc, KT * 1.5], P.reshape(-1, 2)] +
+                              [W @ (Dm[i] @ plane.T + offs[i]) for i in picks])
+
     # ======================================================================
     # arc_occupancy_main -- ONE ROW at A4 text width
     # ======================================================================
@@ -403,138 +498,158 @@ def main():
     # Two panels or three. A and B keep the width they have in the three-panel row --
     # they are limited by their column, not by the row -- so dropping C narrows the
     # figure rather than growing them, and the type sizes below carry over unchanged.
-    abc = args.panels == "abc"
-    fig = plt.figure(figsize=(7.4 if abc else 4.55, 3.10))
-    if abc:
-        gs = fig.add_gridspec(1, 4, left=0.060, right=0.995, top=0.895, bottom=0.230,
-                              wspace=0.19, width_ratios=[1.0, 1.0, 0.10, 0.88])
-        axC = fig.add_subplot(gs[0, 3])      # column 2 is an empty spacer: C carries a
-        #                                      two-line y label and two gaps' worth of
-        #                                      slack is what keeps it off B
-    else:
-        gs = fig.add_gridspec(1, 2, left=0.098, right=0.995, top=0.895, bottom=0.230,
-                              wspace=0.19, width_ratios=[1.0, 1.0])
-        axC = None
-    axA, axB = fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1])
-    # 9.0pt legend, above the 8.0pt ticks: it is the only key in the figure and the one
-    # thing that says what the grey is, so it should not be the smallest type on the page.
-    # 10.0, matching the axis labels, is the ceiling -- the string is then wider than the
-    # 2.03in panel. The swatch grows with the type so it stays a dot rather than a speck.
-    panel_ring(axA, legend=True, legend_loc="upper right", fs_day=8.2, fs_lab=10.0,
-               fs_leg=9.0, ms_leg=5.5)
-    square(axA, np.vstack([xy[ps], ck * 1.6]))
-    panel_wrapped(axB, label_cloud=False, controls=False, fs_day=8.2, fs_txt=8.5,
-                  day_r=1.62, day_pad=1.16)   # room for the bigger day labels in the frame
-    # Class labels wrapped to <=8 characters a line, not the 11 the source panel uses:
-    # 1.8in over four categories is 0.45in each, and "capitalised" needs more than that
-    # at any size worth setting. The full class definitions are caption material.
-    # Only the EVEN labels drive the stagger offset, so the odd ones are free to run to
-    # three lines -- which buys back the full "yesterday, tomorrow" the single-row
-    # version had to abbreviate.
-    # No printed medians: they are reported in the text, and the four bars are far
-    # enough apart on this axis to be read off it. Printed to stdout instead.
-    if axC is not None:
-        panel_violin(axC, widths=0.62, bar=0.27, jit=0.045, fs_tick=8.5, nums=False,
-                     stagger=True,
-                     labels=["Weekday\nmentions", "Months,\nyesterday,\ntomorrow",
-                             "Capit. word\ncontrols", "Random\ntokens"],
-                     # 10pt, matching A's axis labels: one axis-label size per figure
-                     ylab="Share inside the\n6-D weekday subspace", fs_lab=10.0)
-    # Titles are cut to fit the column they sit over: at 8.5pt the 2x2's originals run
-    # 1.9in and 2.3in, which is the whole panel. The full versions are caption material.
-    head = [("A", "Windows in the ring plane", axA),
-            ("B", "Where they land on the ring", axB)]
-    dx = [0.0, -0.020]
-    if axC is not None:
-        head.append(("C", "Energy in the subspace", axC))
-        dx.append(0.034)
-    vcenter(fig, move=(axA, axB), ref=tuple(a for a in (axA, axB, axC) if a is not None))
-    fs = fit_titles(fig, head, dx=dx, fs_max=10.5)
-    print(f"main: titles set at {fs:.1f}pt")
-    save(fig, "arc_occupancy_main_ab" if axC is None else "arc_occupancy_main")
+    # ---------- the 2x2 cut ------------------------------------------------
+    # Four square panels, so a 1x4 row at text width would put each at 1.6in -- narrower
+    # than the three-panel row's squares, and A and B are exactly the panels that stop
+    # being readable when they shrink. 2x2 gives each 3.0in instead, and it pairs the
+    # panels by what they claim: the top row is where weekday windows fall, the bottom
+    # row is what the 7-way swap does to that. C and D keep the shared frame they had as
+    # the appendix's B and C -- see swap_frame().
+    if args.panels == "abcd":
+        fig = plt.figure(figsize=(6.9, 7.30))
+        # hspace has to clear the top row's x label AND the bottom row's letter+title,
+        # which is most of a line each: at 0.20 the "C" title lands on top of A's "PC1".
+        gs = fig.add_gridspec(2, 2, left=0.075, right=0.988, top=0.945, bottom=0.055,
+                              wspace=0.16, hspace=0.34)
+        axA, axB = fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1])
+        axC, axD = fig.add_subplot(gs[1, 0]), fig.add_subplot(gs[1, 1])
+        # The type sizes are the three-panel row's, not the two-panel row's: at 3.0in
+        # these panels are wider than either, so nothing needs to shrink to fit.
+        panel_ring(axA, legend=True, legend_loc="upper right", fs_day=8.2, fs_lab=10.0,
+                   fs_leg=9.0, ms_leg=5.5)
+        square(axA, np.vstack([xy[ps], ck * 1.6]))
+        panel_wrapped(axB, label_cloud=False, controls=False, fs_day=8.2, fs_txt=8.5,
+                      day_r=1.62, day_pad=1.16)
+        panel_swap_rings(axC, fs_leg=8.0)
+        panel_demeaned(axD, fs_day=8.2)
+        ALL = swap_frame()
+        for a in (axC, axD):
+            square(a, ALL, grow=1.20)
+            a.set_xlabel(xl, fontsize=10.0, color=INK)
+            a.set_ylabel(yl, fontsize=10.0, color=INK)
+        letter_titles(fig, [("A", "Windows in the ring plane", axA),
+                            ("B", "Where they land on the ring", axB),
+                            ("C", "Context translates the ring", axC),
+                            ("D", "De-meaned prompt projections", axD)],
+                      fs_title=10.0)
+        save(fig, "arc_occupancy_main_abcd")
+        print("main: 2x2 cut, four panels")
+        plt.close(fig)
 
-    # ======================================================================
-    # arc_occupancy_appendix
-    # ======================================================================
-    # TWO gridspecs, not one: gridspec hspace is uniform, and the gap the strip needs
-    # below it (its tick labels, its axis label, then B and C's letters and titles) is
-    # several times the gap the histogram needs above it.
-    fig = plt.figure(figsize=(7.4, 7.2))
-    gs_t = fig.add_gridspec(2, 1, left=0.088, right=0.985, top=0.955, bottom=0.600,
-                            hspace=0.10, height_ratios=[1.0, 0.30])
-    gs_b = fig.add_gridspec(1, 2, left=0.088, right=0.985, top=0.485, bottom=0.068,
-                            wspace=0.22)
-    axA = fig.add_subplot(gs_t[0, 0]); axN = fig.add_subplot(gs_t[1, 0], sharex=axA)
-    axB, axC = fig.add_subplot(gs_b[0, 0]), fig.add_subplot(gs_b[0, 1])
+    # The one-row cuts, kept whole. --verify renders 'abc' for its pinned md5, so
+    # this path has to stay reachable; under --panels abcd it is simply not one of
+    # the outputs and the 2x2 above is the main-text plate.
+    if args.panels != "abcd":
+        abc = args.panels == "abc"
+        fig = plt.figure(figsize=(7.4 if abc else 4.55, 3.10))
+        if abc:
+            gs = fig.add_gridspec(1, 4, left=0.060, right=0.995, top=0.895, bottom=0.230,
+                                  wspace=0.19, width_ratios=[1.0, 1.0, 0.10, 0.88])
+            axC = fig.add_subplot(gs[0, 3])      # column 2 is an empty spacer: C carries a
+            #                                      two-line y label and two gaps' worth of
+            #                                      slack is what keeps it off B
+        else:
+            gs = fig.add_gridspec(1, 2, left=0.098, right=0.995, top=0.895, bottom=0.230,
+                                  wspace=0.19, width_ratios=[1.0, 1.0])
+            axC = None
+        axA, axB = fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1])
+        # 9.0pt legend, above the 8.0pt ticks: it is the only key in the figure and the one
+        # thing that says what the grey is, so it should not be the smallest type on the page.
+        # 10.0, matching the axis labels, is the ceiling -- the string is then wider than the
+        # 2.03in panel. The swatch grows with the type so it stays a dot rather than a speck.
+        panel_ring(axA, legend=True, legend_loc="upper right", fs_day=8.2, fs_lab=10.0,
+                   fs_leg=9.0, ms_leg=5.5)
+        square(axA, np.vstack([xy[ps], ck * 1.6]))
+        panel_wrapped(axB, label_cloud=False, controls=False, fs_day=8.2, fs_txt=8.5,
+                      day_r=1.62, day_pad=1.16)   # room for the bigger day labels in the frame
+        # Class labels wrapped to <=8 characters a line, not the 11 the source panel uses:
+        # 1.8in over four categories is 0.45in each, and "capitalised" needs more than that
+        # at any size worth setting. The full class definitions are caption material.
+        # Only the EVEN labels drive the stagger offset, so the odd ones are free to run to
+        # three lines -- which buys back the full "yesterday, tomorrow" the single-row
+        # version had to abbreviate.
+        # No printed medians: they are reported in the text, and the four bars are far
+        # enough apart on this axis to be read off it. Printed to stdout instead.
+        if axC is not None:
+            panel_violin(axC, widths=0.62, bar=0.27, jit=0.045, fs_tick=8.5, nums=False,
+                         stagger=True,
+                         labels=["Weekday\nmentions", "Months,\nyesterday,\ntomorrow",
+                                 "Capit. word\ncontrols", "Random\ntokens"],
+                         # 10pt, matching A's axis labels: one axis-label size per figure
+                         ylab="Share inside the\n6-D weekday subspace", fs_lab=10.0)
+        # Titles are cut to fit the column they sit over: at 8.5pt the 2x2's originals run
+        # 1.9in and 2.3in, which is the whole panel. The full versions are caption material.
+        head = [("A", "Windows in the ring plane", axA),
+                ("B", "Where they land on the ring", axB)]
+        dx = [0.0, -0.020]
+        if axC is not None:
+            head.append(("C", "Energy in the subspace", axC))
+            dx.append(0.034)
+        vcenter(fig, move=(axA, axB), ref=tuple(a for a in (axA, axB, axC) if a is not None))
+        fs = fit_titles(fig, head, dx=dx, fs_max=10.5)
+        print(f"main: titles set at {fs:.1f}pt")
+        save(fig, "arc_occupancy_main_ab" if axC is None else "arc_occupancy_main")
 
-    tidy(axA)
-    for k in range(7):
-        axA.bar(ctr, hp_day[k], bottom=cum[k], width=wid, color=DAY_C[k], linewidth=0, zorder=3)
-    for k in range(7):
-        axA.axvline(s_knot[k], color=MID, lw=0.5, ls=(0, (2, 2)), zorder=1)
-    axA.set_xlim(0, L); axA.set_ylim(0, 1.24 * cum[-1].max())
-    axA.tick_params(labelbottom=False)
-    axA.set_ylabel("Density of foot points", fontsize=FS_LAB, color=INK)
-    axA.text(0.5, 0.995, "Weekday mentions, coloured by the day the window ends in",
-             transform=axA.transAxes, ha="center", va="top", fontsize=FS_LEG, color=INK,
-             bbox=dict(boxstyle="square,pad=0.20", fc="white", ec="none"))
+    if args.appendix:
+        # ======================================================================
+        # arc_occupancy_appendix
+        # ======================================================================
+        # TWO gridspecs, not one: gridspec hspace is uniform, and the gap the strip needs
+        # below it (its tick labels, its axis label, then B and C's letters and titles) is
+        # several times the gap the histogram needs above it.
+        fig = plt.figure(figsize=(7.4, 7.2))
+        gs_t = fig.add_gridspec(2, 1, left=0.088, right=0.985, top=0.955, bottom=0.600,
+                                hspace=0.10, height_ratios=[1.0, 0.30])
+        gs_b = fig.add_gridspec(1, 2, left=0.088, right=0.985, top=0.485, bottom=0.068,
+                                wspace=0.22)
+        axA = fig.add_subplot(gs_t[0, 0]); axN = fig.add_subplot(gs_t[1, 0], sharex=axA)
+        axB, axC = fig.add_subplot(gs_b[0, 0]), fig.add_subplot(gs_b[0, 1])
 
-    tidy(axN)
-    for k in range(7):
-        axN.axvline(s_knot[k], color=MID, lw=0.5, ls=(0, (2, 2)), zorder=1)
-    axN.fill_between(ctr, 0, hn, step="mid", color=PALE, zorder=2)
-    axN.step(np.r_[edges[0], ctr, edges[-1]], np.r_[hn[0], hn, hn[-1]], where="mid",
-             color=MID, lw=0.8, zorder=3)
-    axN.set_ylim(0, 1.30 * hn.max()); axN.set_yticks([])
-    axN.spines["left"].set_visible(False)
-    # Monday is labelled at BOTH ends: the axis is a closed loop cut open at the Monday
-    # knot, so Monday's single mode is split across the two edges rather than bimodal.
-    axN.set_xticks(np.r_[s_knot, L])
-    axN.set_xticklabels([d[:3] for d in DAYS] + ["Mon"], fontsize=FS_DAY)
-    axN.set_xlabel("Arc length along the spline, 6-D", fontsize=FS_LAB, color=INK)
-    axN.text(0.015, 0.92, f"Other capitalised words — own scale, peaks at "
-                          f"{hn.max()/cum[-1].max():.0f}x the tallest bar above",
-             transform=axN.transAxes, ha="left", va="top", fontsize=FS_LEG, color=MID,
-             bbox=dict(boxstyle="square,pad=0.20", fc="white", ec="none"))
-
-    tidy(axB); axB.set_aspect("equal")
-    LS, GREY = [(0, (7, 2)), "--", "-.", ":"], ["#16181d", "#4a5160", "#79808f", "#a6acb8"]
-    for j, i in enumerate(picks):
-        Kp = Dm[i] @ plane.T + offs[i]; c = W @ Kp
-        axB.plot(c[:, 0], c[:, 1], linestyle=LS[j], color=GREY[j], lw=1.2, zorder=4,
-                 label=f"Template {j+1}")
+        tidy(axA)
         for k in range(7):
-            axB.plot(Kp[k, 0], Kp[k, 1], "o", ms=4.4, color=DAY_C[k],
-                     markeredgecolor=GREY[j], markeredgewidth=0.6, zorder=5)
-    axB.plot(tc[:, 0], tc[:, 1], "-", color=C_SWAP, lw=1.9, alpha=0.9, zorder=3, label="Mean")
-    axB.legend(frameon=False, fontsize=FS_LEG, loc="upper right", handletextpad=0.5,
-               borderaxespad=0.1, labelspacing=0.28)
+            axA.bar(ctr, hp_day[k], bottom=cum[k], width=wid, color=DAY_C[k], linewidth=0, zorder=3)
+        for k in range(7):
+            axA.axvline(s_knot[k], color=MID, lw=0.5, ls=(0, (2, 2)), zorder=1)
+        axA.set_xlim(0, L); axA.set_ylim(0, 1.24 * cum[-1].max())
+        axA.tick_params(labelbottom=False)
+        axA.set_ylabel("Density of foot points", fontsize=FS_LAB, color=INK)
+        axA.text(0.5, 0.995, "Weekday mentions, coloured by the day the window ends in",
+                 transform=axA.transAxes, ha="center", va="top", fontsize=FS_LEG, color=INK,
+                 bbox=dict(boxstyle="square,pad=0.20", fc="white", ec="none"))
 
-    tidy(axC); axC.set_aspect("equal")
-    for k in range(7):
-        axC.plot(P[:, k, 0], P[:, k, 1], "o", ms=1.6, color=DAY_C[k], alpha=0.5,
-                 markeredgecolor="none", zorder=3)
-    axC.plot(tc[:, 0], tc[:, 1], "-", color="white", lw=2.6, zorder=5)
-    axC.plot(tc[:, 0], tc[:, 1], "-", color=C_SWAP, lw=1.6, zorder=6)
-    for k in range(7):
-        axC.plot(KT[k, 0], KT[k, 1], "o", ms=5.5, color=DAY_C[k], markeredgecolor=INK,
-                 markeredgewidth=0.7, zorder=7)
-        axC.annotate(DAYS[k][:3], (KT[k, 0] * 1.42, KT[k, 1] * 1.42), fontsize=FS_DAY,
-                     color=INK, ha="center", va="center", zorder=8, fontweight="bold")
-    # B and C sit next to each other again, as they did in the 2x2, so they share a
-    # frame: C's spread stays readable against B's displacement, and two equal-aspect
-    # boxes of unequal limits would open a gap between them. B's exemplars are chosen
-    # for maximal displacement and therefore set the frame, which zooms C out.
-    ALL = np.concatenate([np.r_[tc, KT * 1.5], P.reshape(-1, 2)] +
-                         [W @ (Dm[i] @ plane.T + offs[i]) for i in picks])
-    for a in (axB, axC):
-        square(a, ALL, grow=1.20)
-        a.set_xlabel(xl, fontsize=FS_LAB, color=INK); a.set_ylabel(yl, fontsize=FS_LAB, color=INK)
+        tidy(axN)
+        for k in range(7):
+            axN.axvline(s_knot[k], color=MID, lw=0.5, ls=(0, (2, 2)), zorder=1)
+        axN.fill_between(ctr, 0, hn, step="mid", color=PALE, zorder=2)
+        axN.step(np.r_[edges[0], ctr, edges[-1]], np.r_[hn[0], hn, hn[-1]], where="mid",
+                 color=MID, lw=0.8, zorder=3)
+        axN.set_ylim(0, 1.30 * hn.max()); axN.set_yticks([])
+        axN.spines["left"].set_visible(False)
+        # Monday is labelled at BOTH ends: the axis is a closed loop cut open at the Monday
+        # knot, so Monday's single mode is split across the two edges rather than bimodal.
+        axN.set_xticks(np.r_[s_knot, L])
+        axN.set_xticklabels([d[:3] for d in DAYS] + ["Mon"], fontsize=FS_DAY)
+        axN.set_xlabel("Arc length along the spline, 6-D", fontsize=FS_LAB, color=INK)
+        axN.text(0.015, 0.92, f"Other capitalised words — own scale, peaks at "
+                              f"{hn.max()/cum[-1].max():.0f}x the tallest bar above",
+                 transform=axN.transAxes, ha="left", va="top", fontsize=FS_LEG, color=MID,
+                 bbox=dict(boxstyle="square,pad=0.20", fc="white", ec="none"))
 
-    letter_titles(fig, [("A", "Foot points along the spline", axA),
-                        ("B", "Weekday ring is translated by prompt template", axB),
-                        ("C", "De-meaned prompt projections", axC)])
-    save(fig, "arc_occupancy_appendix")
+        panel_swap_rings(axB)
+        panel_demeaned(axC)
+        # B and C sit next to each other again, as they did in the 2x2, so they share a
+        # frame: C's spread stays readable against B's displacement, and two equal-aspect
+        # boxes of unequal limits would open a gap between them. B's exemplars are chosen
+        # for maximal displacement and therefore set the frame, which zooms C out.
+        ALL = swap_frame()
+        for a in (axB, axC):
+            square(a, ALL, grow=1.20)
+            a.set_xlabel(xl, fontsize=FS_LAB, color=INK); a.set_ylabel(yl, fontsize=FS_LAB, color=INK)
+
+        letter_titles(fig, [("A", "Foot points along the spline", axA),
+                            ("B", "Weekday ring is translated by prompt template", axB),
+                            ("C", "De-meaned prompt projections", axC)])
+        save(fig, "arc_occupancy_appendix")
 
     # ---------- everything the captions need, off one run -------------------
     print(f"\nplane: PC1 = {100*pc_var[0]:.1f}% of centroid variance, PC2 = {100*pc_var[1]:.1f}%")
@@ -564,7 +679,7 @@ def main():
         f"{nm} {100*np.median(frac[m]):.2f}%" for nm, m in
         (("weekday", ps), ("near_miss", cls == "near_miss"), ("matched_neg", mneg),
          ("floor", cls == "floor"))))
-    print("appendix panel B templates:")
+    print("panel C templates:")
     for j, i in enumerate(picks):
         print(f"  {j+1}. {prompt(i)!r}")
     return 0

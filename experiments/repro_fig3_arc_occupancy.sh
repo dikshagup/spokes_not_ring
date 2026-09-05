@@ -109,16 +109,29 @@ done
 
 # The tokenizer load is for the appendix only -- it decodes the four prompt templates in its
 # panel B -- and it is offline: the Llama-3.1-8B files are already in HF_HOME.
-# THE PUBLISHED CUT IS TWO PANELS. --panels ab is the plotting script's default and writes
-# arc_occupancy_main_ab, which is the manuscript's figure 3: the ring plane and the ring
-# itself. The third panel -- the share of activation energy inside the subspace -- is the
-# APPENDIX plate's panel B, so carrying it here as well would state one measurement twice.
-# `--panels abc` restores the three-panel row as arc_occupancy_main; it is what the pinned
-# md5 below covers, and it is kept because that hash is the isolation check on this stage.
-echo "[fig3] arc_occupancy_main_ab + arc_occupancy_appendix"
+# THE MAIN-TEXT CUT IS THE 2x2. --panels abcd is the plotting script's default and writes
+# arc_occupancy_main_abcd: the ring plane and the ring itself on the top row, and the two
+# weekday-swap panels -- previously the appendix plate's B and C -- on the bottom. The
+# subspace-energy violin is NOT in it, and the appendix plate is no longer rendered by
+# default -- --verify still renders it, because its md5 below is the check on this stage.
+# `--panels ab` is the previously published two-panel row, and `--panels abc` the
+# three-panel row; the latter is what the pinned md5 below covers, and it is kept because
+# that hash is the isolation check on this stage.
+echo "[fig3] arc_occupancy_main_abcd"
+# The four --pick-context strings are the panel C exemplars OF THE PUBLISHED FIGURE,
+# pinned by their text. They are not reachable through the FAMILIES regexes: those take
+# at most one window per family, and two of these four ("...is open 6 days a week," and
+# "...The winery is open") are both `opening hours`. Pinning also makes the panel stable
+# against a FineWeb re-upload -- load_dataset pins no revision, so the stream that
+# selected these windows is not guaranteed to be the one a later run sees. Any string
+# that stops matching is REPORTED by the plotting script rather than silently replaced.
 $PY experiments/figure_arc_occupancy_split.py \
     --raw "$RAW" --swap "$SWAP" --list "$LIST" \
-    --panels ab --outdir figures --also-png
+    --pick-context "published the series in a" \
+    --pick-context "is open 6 days a week" \
+    --pick-context "the winery is open" \
+    --pick-context "in a statement on" \
+    --panels abcd --outdir figures --also-png
 
 if [[ "$MODE" == "--verify" ]]; then
   echo "[fig3] verifying"
@@ -132,14 +145,15 @@ if [[ "$MODE" == "--verify" ]]; then
   # published plate, and figures/arc_occupancy_main.png is not a figure of the paper.
   $PY experiments/figure_arc_occupancy_split.py \
       --raw "$RAW" --swap "$SWAP" --list "$LIST" \
-      --panels abc --outdir figures --also-png
+      --panels abc --appendix --outdir figures --also-png
   md5sum -c --strict - <<'EOF'
 97f24974980c57e8331fec214d69ab66  figures/arc_occupancy_main.png
 bdb62cb3cb1a60c6f1a79a2cd95cce9e  figures/arc_occupancy_appendix.png
 EOF
-  # arc_occupancy_main_ab HAS NO PIN YET. It is a layout this branch introduces, so no
-  # hash from the published run exists for it; pin one here once it has been rendered.
-  echo "[fig3] note: arc_occupancy_main_ab carries no pinned md5 -- see README"
+  # arc_occupancy_main_abcd HAS NO PIN. It is a new layout, and two of its four panels
+  # are float16 captures rendered through a newer matplotlib, so a hash would be a check
+  # on this tree alone; pin one here once the layout has settled.
+  echo "[fig3] note: arc_occupancy_main_abcd carries no pinned md5 -- see README"
 fi
 
 echo "[fig3] done"
