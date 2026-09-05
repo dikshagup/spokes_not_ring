@@ -72,12 +72,13 @@ def square(ax, pts, pad_frac=0.04, grow=1.04, dy=0.0):
     ax.set_ylim(mid[1] - span / 2 - dy * span, mid[1] + span / 2 - dy * span)
 
 
-def letter_titles(fig, head, dx_let=0.072, dx_tit=0.046, dy=0.020, fs_title=FS_TITLE):
+def letter_titles(fig, head, dx_let=0.072, dx_tit=0.046, dy=0.020, fs_title=FS_TITLE,
+                  fs_let=FS_LET):
     """Letter + title above each panel, keyed off the axes box AFTER equal-aspect shrink."""
     fig.canvas.draw()
     for letter, title, a in head:
         p = a.get_position()
-        fig.text(p.x0 - dx_let, p.y1 + dy - 0.002, letter, fontsize=FS_LET,
+        fig.text(p.x0 - dx_let, p.y1 + dy - 0.002, letter, fontsize=fs_let,
                  fontweight="bold", color=INK, ha="left", va="bottom")
         fig.text(p.x0 - dx_tit, p.y1 + dy, title, fontsize=fs_title, color=INK,
                  ha="left", va="bottom")
@@ -527,11 +528,14 @@ def main():
             square(a, ALL, grow=1.20)
             a.set_xlabel(xl, fontsize=10.0, color=INK)
             a.set_ylabel(yl, fontsize=10.0, color=INK)
-        letter_titles(fig, [("A", "Windows in the ring plane", axA),
+        # 12.0pt, above the 10.0pt axis labels. The 2x2's panels are 3.0in wide against
+        # the one-row cut's 2.03in, so the titles have room the row never had -- the
+        # longest of them, D's, sets the ceiling at about 2.8in of the 3.0.
+        letter_titles(fig, [("A", "FineWeb prompts in the ring plane", axA),
                             ("B", "Where they land on the ring", axB),
-                            ("C", "Context translates the ring", axC),
-                            ("D", "De-meaned prompt projections", axD)],
-                      fs_title=10.0)
+                            ("C", "Prompt context translates the ring", axC),
+                            ("D", "Mean-subtracted prompt projections", axD)],
+                      fs_title=12.0, fs_let=13.0)
         save(fig, "arc_occupancy_main_abcd")
         print("main: 2x2 cut, four panels")
         plt.close(fig)
