@@ -13,7 +13,7 @@ Three models (Llama-3.1-8B, Mistral-7B-v0.1, GPT-2 XL), loaded through Transform
 ## What is here
 
 **Only what produces a figure.** Every module in `src/` and every script in `experiments/`
-is on the path from raw model to one of the seven plates below — that is checked, not
+is on the path from raw model to one of the six plates below — that is checked, not
 claimed. Nothing generated is tracked: no activations, no sweeps, and no rendered figures.
 Each plate is rebuilt by one command.
 
@@ -25,10 +25,9 @@ Each plate is rebuilt by one command.
 | 4 | `fig_method_steer` | `bash experiments/repro_fig4_method_steer.sh` | free if fig 1 has run |
 | 5 | `fig_jac_{llama,mistral,gpt2xl}` | `bash experiments/repro_fig5_jac_grid.sh` | ~2-4 h GPU |
 | 6 | `fig_combined_arith_{ad,eh}` | `bash experiments/repro_fig6_combined_arith.sh` | ~5 h GPU |
-| 7 | `exclusivity_figure` | `bash experiments/repro_fig7_exclusivity.sh` | free if fig 3 has run |
 
 Each script runs its capture stages and then its plotting stage. `--plot` skips to plotting
-against captures already on disk. Figures 2, 3 and 7 also take `--verify`, which re-renders
+against captures already on disk. Figures 2 and 3 also take `--verify`, which re-renders
 and checksums the result against the md5 pinned at the bottom of the script.
 
 **Two plates are composed in the manuscript, not here.** Figure 5 is three per-model rows,
@@ -39,8 +38,7 @@ hide that. `main.tex` expects `fig_jac_grid` and `fig_combined_arith`, so it nee
 subfigure block over those inputs or a pre-composed file.
 
 **Nothing is captured twice.** Figure 4's field and figure 5's Llama field *are* figure 1's
-panel-C field, the same file — whichever script runs first, the others are a no-op. Figure 7
-delegates its whole capture stage to figure 3's script.
+panel-C field, the same file — whichever script runs first, the others are a no-op.
 
 ## Quick start
 
@@ -64,7 +62,7 @@ Llama-3.1-8B in float16 needs roughly 16 GB of GPU memory, plus headroom for the
 figure 1. Weights come through `transformer_lens` / `huggingface-hub`, so
 `huggingface-cli login` or a populated `HF_HOME` is required.
 
-**Budget ~10 GB of disk beyond the model weights** for a full run of all seven. Large
+**Budget ~10 GB of disk beyond the model weights** for a full run of all six. Large
 intermediates default under `${XDG_CACHE_HOME:-~/.cache}/weekday-manifold` rather than the
 working tree; redirect them with `CORPUS=` and `RAWDIR=` if that volume is small.
 
@@ -150,12 +148,11 @@ its BPE disagrees, `torch.cat` fails on a shape mismatch rather than reading the
 | 4 | `fig_method_steer` | wiring only — a schematic, no measured content |
 | 5 | `fig_jac_*` | render-equivalence against the original, plus wiring |
 | 6 | `fig_combined_arith_*` | wiring of its inputs |
-| 7 | `exclusivity_figure` | PNG md5 |
 
-**Figures 3 and 7 are the strong form.** Both were re-run from scratch on this tree — a
-fresh FineWeb stream, fresh captures, nothing carried over — and matched their pinned PNG
-md5s byte for byte on different hardware. So did `arc_occupancy_appendix`, which
-`--verify` still renders even though the default run no longer does.
+**Figure 3 is the strong form.** It was re-run from scratch on this tree — a fresh
+FineWeb stream, fresh captures, nothing carried over — and matched its pinned PNG md5
+byte for byte on different hardware. So did `arc_occupancy_appendix`, which `--verify`
+still renders even though the default run no longer does.
 
 **Figure 3's 2x2 has no pin.** `--panels abcd` is the main-text cut and a layout this
 branch introduces, so no hash from the published run exists for it. What stands in its
@@ -205,7 +202,7 @@ configs/
   gpt2xl_mention.json                 GPT-2 XL, float32, 48 blocks          fig 5
 
 experiments/
-  repro_fig{1..7}_*.sh          the seven entry points, and the authority on
+  repro_fig{1..6}_*.sh          the six entry points, and the authority on
                                   what each figure's arguments are
 
   alpha_ladder_sites.py         figs 1, 6: the ring walk, every steer layer in one pass
@@ -229,9 +226,8 @@ experiments/
   capture_raw_layer.py          fig 3: the raw 4096-d L28 dump
   swap_build_set.py             fig 3: the one-token weekday-swap control set
   swap_capture_l28.py           fig 3: that set, at the same layer and settings
-  arc_geometry.py               figs 3, 7: foot points along the spline (drawing only)
+  arc_geometry.py               fig 3: foot points along the spline (drawing only)
   figure_arc_occupancy_split.py fig 3: the 2x2 main plate, and the appendix off --appendix
-  figure_exclusivity.py         fig 7: the four-panel plate
 
   method_schematic.py           fig 4: the chart and the intervention  (drawing only)
   figure_method_steer.py        fig 4: the plate
@@ -250,11 +246,10 @@ that also built a *different* figure; the function bodies are unchanged, so what
 is what was published, and only the unrelated `main()`s are gone.
 
 **What is shared, and why.** `polar_disc.py` draws figure 1's panel C and every disc in
-figures 5 and 6; `arc_geometry.py`'s `spline_op` builds both figure 3's foot points and
-figure 7's ring, which are the same spline through the same knots. Inside
-`figure_arc_occupancy_split.py` the two swap panels are painters for the same reason: the
-2x2 main plate and the `--appendix` plate both draw them. In each case the alternative was
-two copies of one renderer that could drift apart without either figure erroring.
+figures 5 and 6; inside `figure_arc_occupancy_split.py` the two swap panels are painters
+for the same reason, since the 2x2 main plate and the `--appendix` plate both draw them.
+In each case the alternative was two copies of one renderer that could drift apart
+without either figure erroring.
 Per-figure *style* helpers are deliberately not shared: they differ between plates, and
 sharing them would couple the figures' appearance rather than their arithmetic.
 

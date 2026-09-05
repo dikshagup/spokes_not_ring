@@ -1,7 +1,7 @@
 """The figures whose captures cost GPU hours render from synthetic captures.
 
 WHY THESE EXIST. Figures 1 and 5 are built from captures that are gitignored and take hours
-on a card, so unlike figures 2, 3 and 7 they cannot be re-rendered on demand to check a
+on a card, so unlike figures 2 and 3 they cannot be re-rendered on demand to check a
 change. These build both captures at the real key schema but tiny, and render the plates.
 
 They check WIRING, not numbers: that every key each panel reads is a key the capture writes,

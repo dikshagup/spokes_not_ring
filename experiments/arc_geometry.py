@@ -1,7 +1,6 @@
 """Drawing module: where a point lands on the weekday spline. No main.
 
-spline_op builds both figure 3's foot points and figure 7's ring -- the same spline through
-the same knots.
+spline_op builds figure 3's foot points.
 """
 from __future__ import annotations
 import os, sys
