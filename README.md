@@ -21,7 +21,7 @@ Each plate is rebuilt by one command.
 |---|-------|---------|------|
 | 1 | `fig_combined_llama` | `bash experiments/repro_fig1_combined_llama.sh` | ~4 h GPU |
 | 2 | `timeofday_with_steering` | `bash experiments/repro_fig2_timeofday_with_steering.sh` | ~2 h GPU |
-| 3 | `arc_occupancy_main_ab` | `bash experiments/repro_fig3_arc_occupancy.sh` | ~40 min CPU + ~55 min GPU |
+| 3 | `arc_occupancy_main_abcd` | `bash experiments/repro_fig3_arc_occupancy.sh` | ~40 min CPU + ~55 min GPU |
 | 4 | `fig_method_steer` | `bash experiments/repro_fig4_method_steer.sh` | free if fig 1 has run |
 | 5 | `fig_jac_{llama,mistral,gpt2xl}` | `bash experiments/repro_fig5_jac_grid.sh` | ~2-4 h GPU |
 | 6 | `fig_combined_arith_{ad,eh}` | `bash experiments/repro_fig6_combined_arith.sh` | ~5 h GPU |
@@ -146,7 +146,7 @@ its BPE disagrees, `torch.cat` fails on a shape mismatch rather than reading the
 |---|-------|----------|
 | 1 | `fig_combined_llama` | captures re-run here; arguments confirmed. No md5 — see below |
 | 2 | `timeofday_with_steering` | PNG md5 of the **plot stage only** |
-| 3 | `arc_occupancy_main_ab` | the three-panel variant matches its md5; the two-panel cut has no pin yet |
+| 3 | `arc_occupancy_main_abcd` | render-equivalence against the pre-2x2 script; the 2x2 itself has no pin — see below |
 | 4 | `fig_method_steer` | wiring only — a schematic, no measured content |
 | 5 | `fig_jac_*` | render-equivalence against the original, plus wiring |
 | 6 | `fig_combined_arith_*` | wiring of its inputs |
@@ -154,13 +154,18 @@ its BPE disagrees, `torch.cat` fails on a shape mismatch rather than reading the
 
 **Figures 3 and 7 are the strong form.** Both were re-run from scratch on this tree — a
 fresh FineWeb stream, fresh captures, nothing carried over — and matched their pinned PNG
-md5s byte for byte on different hardware. So did `arc_occupancy_appendix`.
+md5s byte for byte on different hardware. So did `arc_occupancy_appendix`, which
+`--verify` still renders even though the default run no longer does.
 
-**Figure 3's published cut has no pin yet.** `--panels ab` is a layout this branch
-introduces, so no hash from the published run exists for it. `--verify` re-renders the
-three-panel variant, whose md5 *is* from that run and which shares every panel with the
-two-panel cut, so it remains the strongest available check on the stage. Pin `_ab` once it
-has been rendered.
+**Figure 3's 2x2 has no pin.** `--panels abcd` is the main-text cut and a layout this
+branch introduces, so no hash from the published run exists for it. What stands in its
+place is render-equivalence: `--panels abc` and the appendix plate, drawn through the
+same painters the 2x2 uses, come out byte-identical to the pre-2x2 script on the same
+captures, so promoting the swap panels changed nothing about what is drawn. `--verify`
+re-renders those two and checks their md5s, which remains the strongest available check
+on this stage. A pin for `_abcd` would be a check on one tree only — two of its four
+panels are float16 captures, and its type is set through whichever matplotlib the
+environment resolved.
 
 **Float16 figures cannot carry a portable md5.** Figures 1, 2, 6 and figure 5's Llama and
 Mistral rows are captured in float16, whose values drift by ~1e-4 relative between hardware
@@ -225,7 +230,7 @@ experiments/
   swap_build_set.py             fig 3: the one-token weekday-swap control set
   swap_capture_l28.py           fig 3: that set, at the same layer and settings
   arc_geometry.py               figs 3, 7: foot points along the spline (drawing only)
-  figure_arc_occupancy_split.py fig 3: the main plate and its appendix
+  figure_arc_occupancy_split.py fig 3: the 2x2 main plate, and the appendix off --appendix
   figure_exclusivity.py         fig 7: the four-panel plate
 
   method_schematic.py           fig 4: the chart and the intervention  (drawing only)
@@ -246,10 +251,12 @@ is what was published, and only the unrelated `main()`s are gone.
 
 **What is shared, and why.** `polar_disc.py` draws figure 1's panel C and every disc in
 figures 5 and 6; `arc_geometry.py`'s `spline_op` builds both figure 3's foot points and
-figure 7's ring, which are the same spline through the same knots. In each case the
-alternative was two copies of one renderer that could drift apart without either figure
-erroring. Per-figure *style* helpers are deliberately not shared: they differ between plates,
-and sharing them would couple the figures' appearance rather than their arithmetic.
+figure 7's ring, which are the same spline through the same knots. Inside
+`figure_arc_occupancy_split.py` the two swap panels are painters for the same reason: the
+2x2 main plate and the `--appendix` plate both draw them. In each case the alternative was
+two copies of one renderer that could drift apart without either figure erroring.
+Per-figure *style* helpers are deliberately not shared: they differ between plates, and
+sharing them would couple the figures' appearance rather than their arithmetic.
 
 ## Known rough edges
 
